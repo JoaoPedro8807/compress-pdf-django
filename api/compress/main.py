@@ -11,12 +11,12 @@ class GenericFileType(TypedDict):
     file_size: int
 
 
+
 class PDFCompression(ValidationData, Compress):
     def __init__(self, pdf_dir:str = '') -> None:
         self.pdf_dir: Path = Path(pdf_dir) if pdf_dir else Path()
-        self.builder = aw.DocumentBuilder()
         self.files_to_process: List[Path] = []
-        self.comparative: List[tuple] = [] #list of tuple with (file, old_size, new_size)
+        self.comparative: List[tuple] = [] 
         self.files_to_process = []
         
     def __str__(self) -> str:
@@ -41,51 +41,7 @@ class PDFCompression(ValidationData, Compress):
             result.append(f'O arquivo {build[0]} foi de {build[1]} kb para {build[2]} kb, redução de {perct}%')
         return result
     
-    def construct(
-            self, 
-            original_file: GenericFileType | bytes, 
-            quality: int,
-            name: str = '',
-            max_width: int = 1500, 
-            max_heigth: int = 1500):
-        
-        name = name or original_file.name
-        if not name.endswith('.pdf'): 
-            name += '.pdf'  # make sure the file will save .pdf
-            
-        stream = self.compact(
-            file=original_file, 
-            max_width=max_width, 
-            max_height=max_heigth, 
-            quality=quality
-            )
-        
-        #self.save(file=stream, name=name, path=dir_to_save)
-        # new_size = os.path.getsize()
-        # original_size = os.path.getsize(original_file)
-        # self.comparative.append((original_file.name, original_size, new_size))
-
-        return stream
-
-    def save(self, 
-        file: aw.Document,
-        name: str = '', 
-        path: Path | str = '',
-        *args,
-        **kwargs
-    ) -> None:
-        save_options = aw.saving.PdfSaveOptions()
-        save_options.cache_background_graphics = True
-
-
-        if not name:
-            name = file.original_file_name
-        ouput_path = path / name
-
-        self.builder.document.save(str(ouput_path), save_options)  # Salva diretamente o documento no fluxow  
-
-
-    def build(self, 
+    async def build(self, 
             file: bytes,
             quality: int,
             name: str = '',
@@ -113,15 +69,18 @@ class PDFCompression(ValidationData, Compress):
             quality=quality, 
             file=file)
             
-        pdf_compressed = self.construct(
-            original_file=file,
-            quality=quality,
-            name=name,
-            max_width=max_width,
-            max_heigth=max_heigth
-        )
+        name = name or file.name
+        if not name.endswith('.pdf'): 
+            name += '.pdf'  # make sure the file will save .pdf
+            
+        return await self.compact(
+            file=file, 
+            max_width=max_width, 
+            max_height=max_heigth, 
+            quality=quality
+            )
+        
 
-        return pdf_compressed
 
     def init_validate(self, *args, **kwargs) -> None:
         self.validate_data(*args, **kwargs)

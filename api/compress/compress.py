@@ -3,6 +3,7 @@ from typing import Any
 import os
 from pathlib import Path
 import io
+from asgiref.sync import sync_to_async
 
 class Compress:
     def __init__(self, *args, **kwargs) -> None:
@@ -12,7 +13,7 @@ class Compress:
         """ set size for any image in PDF """
         page_setup.page_width = width
         page_setup.page_height = height
-
+    @sync_to_async(thread_sensitive=False)
     def compact(self,  
                 file: bytes, 
                 max_width: int = 1500, 
@@ -29,16 +30,17 @@ class Compress:
         pdf_read_options.jpeg_quality = quality
         
         renderer = aw.pdf2word.fixedformats.PdfFixedRenderer()
+        builder = aw.DocumentBuilder()
         print('Compactando ....')
         #with open(file, 'rb') as pdf_stream: #open with write binary
         pdf_stream = io.BytesIO(file)
         aspose_image = renderer.save_pdf_as_images(pdf_stream, pdf_read_options)
 
         for i in range(0, len(aspose_image)): # loop for all pages in PDF, and rewrite 
-            page_setup = self.builder.page_setup
+            page_setup = builder.page_setup
             self.set_pdf_page_size(page_setup, max_width, max_height) #set the image size in current page
 
-            page_image = self.builder.insert_image(aspose_image[i])
+            page_image = builder.insert_image(aspose_image[i])
 
             self.set_pdf_page_size(page_setup, page_image.width, page_image.height) 
            
@@ -48,10 +50,10 @@ class Compress:
             page_setup.right_margin = 0
 
             if i != len(aspose_image) - 1: # break increment in the last page 
-                self.builder.insert_break(aw.BreakType.SECTION_BREAK_NEW_PAGE)
+                builder.insert_break(aw.BreakType.SECTION_BREAK_NEW_PAGE)
 
         pdf_output = io.BytesIO()
-        self.builder.document.save(pdf_output, aw.SaveFormat.PDF)
+        builder.document.save(pdf_output, aw.SaveFormat.PDF)
         pdf_output.seek(0)
 
         return pdf_output
